@@ -12,6 +12,11 @@ version: '2'
 networks:
   patroni:
 
+volumes:
+  pg-1:
+  pg-2:
+  pg-3:
+
 services:
   etcd1: &etcd
     image: patroni
@@ -45,7 +50,7 @@ services:
     hostname: haproxy
     container_name: haproxy
     ports:
-      - '5432:5000'
+      - '${PORT:-5432}:5000'
       - '5001:5001'
     command: haproxy
     environment: &haproxy_env
@@ -67,6 +72,7 @@ services:
     environment:
       <<: *haproxy_env
       PATRONI_NAME: patroni1
+    volumes: pg-1:/home/postgres/data
 
   patroni2:
     image: patroni
@@ -80,6 +86,7 @@ services:
       PATRONI_NAME: patroni2
     depends_on:
       - patroni1
+    volumes: pg-1:/home/postgres/data
 
   patroni3:
     image: patroni
@@ -93,3 +100,4 @@ services:
       PATRONI_NAME: patroni3
     depends_on:
       - patroni1
+    volumes: pg-1:/home/postgres/data
