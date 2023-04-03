@@ -1,3 +1,5 @@
+
+
 ## This Dockerfile is meant to aid in the building and debugging patroni whilst developing on your local machine
 ## It has all the necessary components to play/debug with a single node appliance, running etcd
 ARG PG_MAJOR=15
@@ -9,12 +11,17 @@ ARG LANG=C.UTF-8
 
 FROM postgres:$PG_MAJOR as builder
 
+RUN apt-get update -y && apt-get upgrade -y
+RUN apt-get install postgis* -y
+# RUN cp -r /usr/share/postgresql/${PG_MAJOR}/extension /extension
+
 ARG PGHOME
 ARG PGDATA
 ARG LC_ALL
 ARG LANG
 
 ENV ETCDVERSION=3.3.13 CONFDVERSION=0.16.0
+ENV ETCD_UNSUPPORTED_ARCH=arm64
 
 RUN set -ex \
     && export DEBIAN_FRONTEND=noninteractive \
@@ -116,8 +123,8 @@ RUN if [ "$COMPRESS" = "true" ]; then \
         && /bin/busybox sh -c "find $save_dirs -type d -depth -exec rmdir -p {} \; 2> /dev/null"; \
     fi
 
-FROM scratch
-COPY --from=builder / /
+# FROM scratch
+# COPY --from=builder / /
 
 LABEL maintainer="Alexander Kukushkin <akukushkin@microsoft.com>"
 
@@ -130,8 +137,12 @@ ARG LANG
 
 ARG PGBIN=/usr/lib/postgresql/$PG_MAJOR/bin
 
+# COPY --from=builder /usr/share/postgresql/$PG_MAJOR/extension /usr/share/postgresql/$PG_MAJOR/extension
+
 ENV LC_ALL=$LC_ALL LANG=$LANG EDITOR=/usr/bin/editor
 ENV PGDATA=$PGDATA PATH=$PATH:$PGBIN
+ENV ETCD_UNSUPPORTED_ARCH=arm64
+
 
 COPY patroni /patroni/
 COPY extras/confd/conf.d/haproxy.toml /etc/confd/conf.d/
@@ -155,6 +166,8 @@ RUN sed -i 's/env python/&3/' /patroni*.py \
     && chmod +s /bin/ping \
     && chown -R postgres:postgres "$PGHOME" /run /etc/haproxy
 
-USER postgres
 
+USER postgres
+RUN mkdir /home/postgres/data
+RUN chmod -R 700 /home/postgres/data
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
